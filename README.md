@@ -1,2 +1,4 @@
 # XBASIC
-Moved to SimplifyCode : www.github.com/RinkuruAi/SimplifyCode
+A new 8-bit BASIC version for IBM PC compatible.
+
+Used FASM & written 100% by hand.
