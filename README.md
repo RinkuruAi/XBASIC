@@ -1,2 +1,2 @@
 # XBASIC
-Moved to SimplifyCode : github.com/RinkuruAi/SimplifyCode
+Moved to SimplifyCode : www.github.com/RinkuruAi/SimplifyCode
