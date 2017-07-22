@@ -3,9 +3,6 @@ org	0x7C00
 jmp	_main
 
 ; --- DATA ---
-DEF_StackSegment	equ	0x9000
-DEF_StackAddress	equ	0xFFFE
-
 DEF_KernelSegment	equ	0x07E0
 DEF_KernelAddress	equ	0x0000
 
@@ -14,9 +11,8 @@ KERNEL_DiskTrackNumber	equ	0
 KERNEL_DiskSectorNumber	equ	2
 KERNEL_ReadSectorNumber	equ	10
 
-KERNEL_SignatureFlag	db	"@"
-KERNEL_SignatureKey	db	"XBASIC"
-KERNEL_SignatureLength	=	$ - KERNEL_SignatureFlag
+KERNEL_SignatureKey	db	"@XBASIC"
+KERNEL_SignatureLength	=	$ - KERNEL_SignatureKey
 KERNEL_SignatureLimit	equ	5
 
 VIDEO_DefaultPage	equ	0
@@ -25,41 +21,9 @@ ERROR_BadDrive	db	">>> DISK ERROR",0x03
 ERROR_NoKernel	db	">>> KERNEL NOT FOUND",0x03
 
 ; --- PROCEDURE ---
-; [ BIOS COLD REBOOT ]
-_BIOSColdReboot:
-	; Set cold reboot magic number
-	mov	ax,0x0040
-	mov	ds,ax
-	mov	word [0x0072],0x0000
 
-	; Cold reboot
-	jmp	0xFFFF:0x0000
-
-; [ WAIT FOR KEYPRESS ]
-_waitForKeypress:
-	; Store registers
-	push	ax
-
-	; Set read keyboard input interrupt
-	mov	ah,0x00
-
-	; Read keyboard input
-	int	0x16
-
-	; Restore registers
-	pop	ax
-
-	; Exit procedure
-	ret
-
-; [ STRING OUTPUT ]
-; - INPUT
-;   + DS:SI : String address
-_stringOutput:
-	; Store registers
-	push	ax
-	push	si
-
+; [ ERROR RAISING (print message + get keypress + cold reboot)]
+_raiseError:
 	; Set character output interrupt
 	mov	ah,0x0E
 
@@ -78,20 +42,22 @@ _stringOutput:
 	; Repeat those steps
 	jmp	@b
 
-	; Restore registers
-@@:	pop	si
-	pop	ax
+@@:	; Set read keyboard input interrupt
+	mov	ah,0x00
 
-	; Exit procedure
-	ret
+	; Read keyboard input
+	int	0x16
+
+	; Set cold reboot magic number
+	mov	ax,0x0040
+	mov	ds,ax
+	mov	word [0x0072],0x0000
+
+	; Cold reboot
+	jmp	0xFFFF:0x0000
 
 ; --- CODE ---
 _main:
-	; Set temporary stack address for bootloader procedures calling
-	mov	ax,DEF_StackSegment
-	mov	ss,ax
-	mov	sp,DEF_StackAddress
-
 	; Set temporary data segment for error message addressing
 	mov	ax,cs
 	mov	ds,ax
@@ -148,11 +114,7 @@ _main:
 
 	; If not, raise error and restart the computer
 	mov	si,ERROR_BadDrive
-	call	_stringOutput
-
-	call	_waitForKeypress
-
-	call	_BIOSColdReboot
+	jmp	_raiseError
 
 	; Verify kernel signature
 @@:	mov	di,DEF_KernelAddress
@@ -167,15 +129,11 @@ _main:
 	
 	; If yes, raise error and restart the computer
 	mov	si,ERROR_NoKernel
-	call	_stringOutput
-
-	call	_waitForKeypress
-
-	call	_BIOSColdReboot
+	jmp	_raiseError
 
 	; If not, do the comparison
 @@:	mov	cx,KERNEL_SignatureLength
-	mov	si,KERNEL_SignatureFlag
+	mov	si,KERNEL_SignatureKey
 
 	; Signature comparison
 	repe	cmpsb
